@@ -210,7 +210,7 @@ const GAMES = [
 const OPP_RUNS = [6,5,16,14,9,8,11,10,1,11,9,10,1];
 
 /* ================================================================ */
-const QUAL_PA = 2.5 * GAMES.length;
+const QUAL_PA = 2 * GAMES.length;
 const I = { AB:0,R:1,H:2,RBI:3,BB:4,SO:5,D2:6,T3:7,HR:8,HBP:9,SF:10,SB:11 };
 
 const emptyTot = () => ({G:0,AB:0,R:0,H:0,RBI:0,BB:0,SO:0,D2:0,T3:0,HR:0,HBP:0,SF:0,SB:0});
@@ -271,7 +271,7 @@ document.getElementById("team-grid").innerHTML = [
 document.getElementById("board-hint").textContent =
   `Tap a name for drilldown \u00b7 tap headers to sort \u00b7 \u2020 below ${Math.ceil(QUAL_PA)} PA (rate-stat sorts list qualified first)`;
 document.getElementById("footnote").textContent =
-  `Compiled from ${GAMES.length} box scores. Qualified = 2.5 PA \u00d7 ${GAMES.length} tracked games (${QUAL_PA} PA). Record includes the forfeit win (no box score). Batting only.`;
+  `Compiled from ${GAMES.length} box scores. Qualified = 2 PA \u00d7 ${GAMES.length} tracked games (${QUAL_PA} PA). Record includes the forfeit win (no box score). Batting only.`;
 
 /* ---------------- Leaderboard ---------------- */
 function renderBoard(){
