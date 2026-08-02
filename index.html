@@ -94,6 +94,7 @@
         <div class="board-title" id="game-box-title"></div>
         <button class="close-btn" onclick="showGameBox(null)">Close ✕</button>
       </div>
+      <div class="pills" id="game-box-slicer" style="margin:8px 0 0"></div>
       <div class="tbl-scroll" style="margin-top:8px"><table id="game-box-tbl"></table></div>
     </div>
   </div>
@@ -169,13 +170,13 @@ const GAMES = [
     "R Cruz":[4,1,0,0,0,1,0,0,0,1,0,0], "J Shnider":[5,2,3,1,1,1,1,0,0,0,0,1],
     "J Lim":[1,1,0,0,4,0,0,0,0,0,0,0], "C Won":[2,0,0,1,2,2,0,0,0,1,0,0],
     "K Kaupp":[5,1,2,2,0,1,0,0,0,0,0,0], "S Paek":[2,3,0,0,2,1,0,0,0,2,0,0] }},
-  { date:"May 31 (1)", opp:"Islanders", res:"W", score:"22\u20139", lines:{
+  { date:"May 31 (1)", opp:"Islanders", res:"W", score:"22\u20139", ha:"@", lines:{
     "F Pankovcin":[3,3,2,2,1,1,1,0,0,1,0,0], "K Kaupp":[4,3,2,2,2,0,0,0,0,0,0,0],
     "S Ahn":[2,3,0,1,3,0,0,0,0,0,0,0], "J Shnider":[4,1,0,0,0,2,0,0,0,1,0,0],
     "R Cruz":[4,2,2,4,0,1,0,0,0,1,0,0], "A Brousssard":[4,2,2,3,1,0,0,0,0,0,0,0],
     "J Lim":[4,3,3,4,1,0,1,1,0,0,0,0], "C Won":[4,3,3,3,1,0,1,0,0,1,0,0],
     "C Hoffman":[3,2,3,3,1,0,1,0,0,0,0,0] }},
-  { date:"May 31 (2)", opp:"Islanders", res:"L", score:"7\u20138", lines:{
+  { date:"May 31 (2)", opp:"Islanders", res:"L", score:"7\u20138", ha:"@", lines:{
     "Z Charles":[3,0,1,0,2,1,0,0,0,0,0,1], "A Brousssard":[5,0,1,0,0,4,0,0,0,0,0,0],
     "C Hoffman":[5,1,2,0,0,1,0,0,0,0,0,0], "F Pankovcin":[5,1,2,1,0,1,1,0,0,0,0,1],
     "S Ahn":[5,0,0,0,0,3,0,0,0,0,0,0], "K Kaupp":[4,3,2,1,1,1,1,0,0,0,0,0],
@@ -187,13 +188,13 @@ const GAMES = [
     "J Shnider":[4,0,1,3,1,0,0,0,0,0,0,0], "A Brousssard":[2,3,0,0,2,2,0,0,0,1,0,0],
     "J Lim":[3,4,2,1,1,0,2,0,0,1,0,1], "K Kaupp":[4,2,2,1,1,0,0,0,0,0,0,0],
     "B Siow":[4,1,2,2,1,1,0,0,0,0,0,0] }},
-  { date:"Jun 14 (1)", opp:"Islanders", res:"L", score:"9\u201310", lines:{
+  { date:"Jun 14 (1)", opp:"Islanders", res:"L", score:"9\u201310", ha:"vs", lines:{
     "F Pankovcin":[4,2,1,0,1,0,1,0,0,0,0,0], "Z Charles":[4,0,0,0,0,0,0,0,0,1,0,0],
     "C Hwang":[4,2,2,2,1,0,1,0,0,0,0,0], "J Shnider":[4,1,1,0,1,2,0,0,0,0,0,2],
     "R Cruz":[5,1,2,2,0,3,0,0,0,0,0,0], "J Lim":[3,1,1,0,2,2,0,0,0,0,0,0],
     "B Siow":[3,1,1,1,0,0,0,0,0,1,1,0], "K Kaupp":[4,1,3,2,0,0,0,0,0,0,0,2],
     "A Brousssard":[3,0,0,1,0,2,0,0,0,0,1,0], "C Hoffman":[3,0,0,1,1,2,0,0,0,0,0,1] }},
-  { date:"Jun 14 (2)", opp:"Knights", res:"W", score:"23\u20131", lines:{
+  { date:"Jun 14 (2)", opp:"Knights", res:"W", score:"23\u20131", ha:"vs", lines:{
     "Z Charles":[7,1,4,2,0,1,0,0,0,0,0,0], "S Ahn":[5,2,1,1,1,2,0,0,0,0,0,0],
     "F Pankovcin":[5,3,3,3,1,1,0,1,0,0,0,0], "K Kaupp":[5,2,3,2,1,2,0,0,0,0,0,0],
     "B Siow":[4,2,2,2,2,0,0,0,0,0,0,0], "R Cruz":[5,4,2,2,0,2,0,0,0,1,0,2],
@@ -517,7 +518,16 @@ function showGameBox(i){
   const g=GAMES[selGame];
   box.style.display="block";
   document.getElementById("game-box-title").innerHTML =
-    `${g.date} vs ${g.opp} — <span class="${g.res==="W"?"res-w":"res-l"}">${g.res} ${g.score}</span>`;
+    `${g.date} ${g.ha||"vs"} ${g.opp} — <span class="${g.res==="W"?"res-w":"res-l"}">${g.res} ${g.score}</span>`;
+  const day=g.date.replace(/ \(\d+\)$/,"");
+  const sibs=[]; GAMES.forEach((x,j)=>{ if(x.date.replace(/ \(\d+\)$/,"")===day) sibs.push(j); });
+  const slicer=document.getElementById("game-box-slicer");
+  if(sibs.length>1){
+    slicer.innerHTML=sibs.map((j,k)=>
+      `<button class="pill${j===selGame?" active":""}" data-j="${j}">${GAMES[j].ha?GAMES[j].ha+" ":""}${GAMES[j].opp} (${k+1})</button>`).join("");
+    if(slicer.querySelectorAll) slicer.querySelectorAll(".pill").forEach(b=>
+      b.addEventListener("click", ()=>{ const j=+b.getAttribute("data-j"); if(j!==selGame) showGameBox(j); }));
+  } else slicer.innerHTML="";
   const hdr=["AB","R","H","2B","3B","HR","RBI","BB","K","SB","HBP","SF"];
   const idx=[I.AB,I.R,I.H,I.D2,I.T3,I.HR,I.RBI,I.BB,I.SO,I.SB,I.HBP,I.SF];
   const tot=new Array(12).fill(0);
