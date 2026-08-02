@@ -309,7 +309,7 @@ const COLS = [
   {k:"KPCT",l:"K%",r:1,f:fmtPct},{k:"BBPCT",l:"BB%",r:1,f:fmtPct},{k:"ISO",l:"ISO",r:1,f:fmt3},{k:"WOBA",l:"wOBA",r:1,f:fmt3},
 ];
 
-let sortKey="AVG", sortDir=-1, selected=null;
+let sortKey="OPS", sortDir=-1, selected=null;
 
 /* ---------------- Header ---------------- */
 document.getElementById("record").textContent = RECORD;
@@ -418,7 +418,8 @@ function smoothPath(pts){
 function drawChartInto(elId, series, opts){
   const o=opts||{}, fmt=o.fmt||fmt3, refs=o.refs||[], onClick=o.onClick, hl=o.hl, tipN=o.tipN||(n=>`last ${n}G`);
   const n=series[0].points.length;
-  const W=720, H=245, mL=56, mR=14, mT=14, mB=32;
+  const F=(typeof window!=="undefined" && window.innerWidth<700)?1.7:1;
+  const W=720, H=245, mL=Math.round(56*(0.6+0.4*F)), mR=14, mT=14, mB=Math.round(32*(0.6+0.4*F));
   const iw=W-mL-mR, ih=H-mT-mB;
   let vals=[]; series.forEach(s=>s.points.forEach(p=>vals.push(p.v))); refs.forEach(r=>vals.push(r.v));
   let lo=Math.min(...vals), hi=Math.max(...vals);
@@ -433,11 +434,11 @@ function drawChartInto(elId, series, opts){
   let svg=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${o.aria||""}">`;
   ticks.forEach(t=>{
     svg+=`<line x1="${mL}" y1="${y(t)}" x2="${W-mR}" y2="${y(t)}" stroke="#2c3438" stroke-dasharray="2 4"/>`;
-    svg+=`<text x="${mL-6}" y="${y(t)+3.5}" text-anchor="end" font-size="8" fill="#8d968f" font-family="Courier New,monospace">${fmt(t)}</text>`;
+    svg+=`<text x="${mL-6}" y="${y(t)+3.5}" text-anchor="end" font-size="${(8*F).toFixed(1)}" fill="#8d968f" font-family="Courier New,monospace">${fmt(t)}</text>`;
   });
   refs.forEach(r=>{
     svg+=`<line x1="${mL}" y1="${y(r.v)}" x2="${W-mR}" y2="${y(r.v)}" stroke="#8d968f" stroke-dasharray="4 4"/>`;
-    svg+=`<text x="${W-mR}" y="${y(r.v)-4}" text-anchor="end" font-size="8.5" fill="#8d968f" font-family="Courier New,monospace">${r.label}</text>`;
+    svg+=`<text x="${W-mR}" y="${y(r.v)-4}" text-anchor="end" font-size="${(8.5*F).toFixed(1)}" fill="#8d968f" font-family="Courier New,monospace">${r.label}</text>`;
   });
   if(o.shade && series.length===2 && n>1){
     const a=series[0].points.map((p,i)=>[x(i),y(p.v)]);
@@ -459,13 +460,13 @@ function drawChartInto(elId, series, opts){
   if(series.length>1){
     series.forEach(s=>{
       const last=s.points[n-1];
-      svg+=`<text x="${x(n-1)}" y="${y(last.v)-8}" text-anchor="end" font-size="8.5" fill="${s.color}" font-family="Courier New,monospace" font-weight="bold">${s.name}</text>`;
+      svg+=`<text x="${x(n-1)}" y="${y(last.v)-8}" text-anchor="end" font-size="${(8.5*F).toFixed(1)}" fill="${s.color}" font-family="Courier New,monospace" font-weight="bold">${s.name}</text>`;
     });
   }
   series[0].points.forEach((p,i)=>{
     const every=Math.ceil(n/7);
     if(i%every===0 || i===n-1)
-      svg+=`<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="7.5" fill="#8d968f" font-family="Courier New,monospace">${p.label}</text>`;
+      svg+=`<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="${(7.5*F).toFixed(1)}" fill="#8d968f" font-family="Courier New,monospace">${p.label}</text>`;
   });
   if(onClick){
     const halfw = n>1 ? iw/(n-1)/2 : iw/2;
@@ -607,6 +608,9 @@ function refreshFromFilter(){
   updateHint();
   renderGameFilters();
   if(selected) selectPlayer(selected); else renderBoard();
+}
+if(typeof window!=="undefined" && window.addEventListener){
+  let rzT; window.addEventListener("resize", ()=>{ clearTimeout(rzT); rzT=setTimeout(()=>{ renderTeamChart(); if(selected) renderPlayerChartUI(); }, 200); });
 }
 if(document.addEventListener) document.addEventListener("click", e=>{
   if(!Object.keys(gfOpen).some(k=>gfOpen[k])) return;
