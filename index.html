@@ -62,6 +62,9 @@
   .board-hint { font-size:10.5px; color:var(--dim); }
 
   .res-w { color:var(--win); } .res-l { color:var(--loss); }
+  .pills { display:flex; gap:6px; flex-wrap:wrap; margin:0 0 8px; }
+  .pill { background:transparent; border:1px solid var(--line); color:var(--dim); padding:4px 11px; font-family:var(--mono); font-size:11.5px; cursor:pointer; letter-spacing:.5px; }
+  .pill.active { border-color:var(--orange); color:var(--orange); }
   #teamlog tbody tr:hover td { background:#1d2225; }
   #teamlog tbody tr.sel td { background:#26221c; }
   .footnote { font-size:10px; color:#5a625c; margin-top:12px; line-height:1.5; }
@@ -79,7 +82,8 @@
       <div class="sub" id="subline"></div>
     </div>
     <div class="team-grid" id="team-grid"></div>
-    <div class="section-label">Rolling 4-game team OPS <span style="text-transform:none;letter-spacing:0">· tap a game for the box score</span></div>
+    <div class="section-label">Rolling 4-game <span id="t-metric-label">team OPS</span> <span style="text-transform:none;letter-spacing:0">· tap a game for the box score</span></div>
+    <div class="pills" id="t-pills"></div>
     <div id="team-chart"></div>
     <div id="game-box" style="display:none">
       <div class="drill-head" style="margin-top:14px">
@@ -98,7 +102,8 @@
       </div>
       <button class="close-btn" onclick="selectPlayer(null)">Close ✕</button>
     </div>
-    <div class="section-label">Rolling 4-game OPS</div>
+    <div class="section-label">Rolling 4-game <span id="p-metric-label">OPS</span></div>
+    <div class="pills" id="p-pills"></div>
     <div id="chart-box"></div>
     <div class="section-label">Game log</div>
     <div class="tbl-scroll"><table id="gamelog"></table></div>
@@ -251,12 +256,20 @@ const team = (() => {
   return d;
 })();
 
-function rollingOPS(log){
+function rollingStat(log, key){
   return log.map((_,i)=>{
     const win=log.slice(Math.max(0,i-3),i+1), t=emptyTot();
     win.forEach(e=>addLine(t,e.line));
-    return {label:log[i].game.date, ops:derive(t).OPS, n:win.length};
+    return {label:log[i].game.date, v:derive(t)[key], n:win.length};
   });
+}
+const METRICS={OPS:{l:"OPS",f:fmt3},OBP:{l:"OBP",f:fmt3},AVG:{l:"AVG",f:fmt3},KPCT:{l:"K%",f:fmtPct},BBPCT:{l:"BB%",f:fmtPct}};
+let playerMetric="OPS";
+function renderPills(elId, keys, active, onPick){
+  const el=document.getElementById(elId);
+  el.innerHTML=keys.map(k=>`<button class="pill${k===active?" active":""}" data-k="${k}">${k==="DIFF"?"RS/RA":METRICS[k].l}</button>`).join("");
+  if(el.querySelectorAll) el.querySelectorAll(".pill").forEach(b=>
+    b.addEventListener("click", ()=>onPick(b.getAttribute("data-k"))));
 }
 
 const COLS = [
@@ -325,7 +338,7 @@ function selectPlayer(name){
     p.name + (p.qualified?"":" <small>(not qualified)</small>");
   document.getElementById("drill-slash").textContent =
     `${fmt3(p.stats.AVG)}/${fmt3(p.stats.OBP)}/${fmt3(p.stats.SLG)} \u00b7 ${fmt3(p.stats.OPS)} OPS \u00b7 ${p.stats.PA} PA \u00b7 ${p.stats.G} G`;
-  drawChart(p);
+  renderPlayerChartUI();
   renderGameLog(p);
   renderBoard();
   box.scrollIntoView({behavior:"smooth", block:"nearest"});
@@ -346,45 +359,66 @@ function renderGameLog(p){
 }
 
 /* Hand-rolled SVG line chart */
-function drawChart(p){ drawChartInto("chart-box", rollingOPS(p.log), p.stats.OPS, `Rolling 4-game OPS for ${p.name}`); }
-function drawChartInto(elId, data, seasonOPS, aria, onClick, hl){
+function renderPlayerChartUI(){
+  const p=players.find(x=>x.name===selected); if(!p) return;
+  renderPills("p-pills", ["OPS","OBP","AVG","KPCT","BBPCT"], playerMetric, k=>{playerMetric=k; renderPlayerChartUI();});
+  const m=METRICS[playerMetric];
+  document.getElementById("p-metric-label").textContent=m.l;
+  drawChartInto("chart-box",
+    [{name:m.l, color:"#e8641d", points:rollingStat(p.log, playerMetric)}],
+    {fmt:m.f, refs:[{v:p.stats[playerMetric], label:`season ${m.f(p.stats[playerMetric])}`}],
+     aria:`Rolling 4-game ${m.l} for ${p.name}`});
+}
+function drawChartInto(elId, series, opts){
+  const o=opts||{}, fmt=o.fmt||fmt3, refs=o.refs||[], onClick=o.onClick, hl=o.hl;
+  const n=series[0].points.length;
   const W=720, H=240, mL=56, mR=14, mT=14, mB=32;
   const iw=W-mL-mR, ih=H-mT-mB;
-  const vals=data.map(d=>d.ops).concat([seasonOPS]);
+  let vals=[]; series.forEach(s=>s.points.forEach(p=>vals.push(p.v))); refs.forEach(r=>vals.push(r.v));
   let lo=Math.min(...vals), hi=Math.max(...vals);
-  const pad=Math.max((hi-lo)*0.12, 0.05); lo=Math.max(0,lo-pad); hi+=pad;
-  const x=i=> data.length===1 ? mL+iw/2 : mL + iw*i/(data.length-1);
+  const pad=Math.max((hi-lo)*0.12, (hi||1)*0.02); lo=Math.max(0,lo-pad); hi+=pad;
+  const x=i=> n===1 ? mL+iw/2 : mL + iw*i/(n-1);
   const y=v=> mT + ih*(1-(v-lo)/(hi-lo));
-
-  /* y-axis ticks: 4 even steps */
   let ticks=[]; for(let k=0;k<=3;k++) ticks.push(lo+(hi-lo)*k/3);
-
-  let svg=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${aria}">`;
+  let svg=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${o.aria||""}">`;
   ticks.forEach(t=>{
     svg+=`<line x1="${mL}" y1="${y(t)}" x2="${W-mR}" y2="${y(t)}" stroke="#2c3438" stroke-dasharray="2 4"/>`;
-    svg+=`<text x="${mL-6}" y="${y(t)+3.5}" text-anchor="end" font-size="13" fill="#8d968f" font-family="Courier New,monospace">${fmt3(t)}</text>`;
+    svg+=`<text x="${mL-6}" y="${y(t)+3.5}" text-anchor="end" font-size="13" fill="#8d968f" font-family="Courier New,monospace">${fmt(t)}</text>`;
   });
-  /* season OPS reference */
-  svg+=`<line x1="${mL}" y1="${y(seasonOPS)}" x2="${W-mR}" y2="${y(seasonOPS)}" stroke="#8d968f" stroke-dasharray="4 4"/>`;
-  svg+=`<text x="${W-mR}" y="${y(seasonOPS)-4}" text-anchor="end" font-size="12.5" fill="#8d968f" font-family="Courier New,monospace">season ${fmt3(seasonOPS)}</text>`;
-  /* line */
-  if(data.length>1){
-    svg+=`<polyline fill="none" stroke="#e8641d" stroke-width="2.5" points="${data.map((d,i)=>`${x(i)},${y(d.ops)}`).join(" ")}"/>`;
+  refs.forEach(r=>{
+    svg+=`<line x1="${mL}" y1="${y(r.v)}" x2="${W-mR}" y2="${y(r.v)}" stroke="#8d968f" stroke-dasharray="4 4"/>`;
+    svg+=`<text x="${W-mR}" y="${y(r.v)-4}" text-anchor="end" font-size="12.5" fill="#8d968f" font-family="Courier New,monospace">${r.label}</text>`;
+  });
+  series.forEach(s=>{
+    if(n>1) svg+=`<polyline fill="none" stroke="${s.color}" stroke-width="2.5" points="${s.points.map((p,i)=>`${x(i)},${y(p.v)}`).join(" ")}"/>`;
+  });
+  series.forEach(s=>s.points.forEach((p,i)=>{
+    const isHl=hl===i;
+    svg+=`<circle cx="${x(i)}" cy="${y(p.v)}" r="${isHl?5.5:3.5}" fill="${isHl?"#f3a06b":s.color}" stroke="#101314" stroke-width="1.5">
+      <title>${p.label}${series.length>1?" "+s.name:""}: ${fmt(p.v)} (last ${p.n}G)</title></circle>`;
+  }));
+  if(series.length>1){
+    let lx=W-mR;
+    [...series].reverse().forEach(s=>{
+      svg+=`<text x="${lx}" y="${mT+2}" text-anchor="end" font-size="12.5" fill="${s.color}" font-family="Courier New,monospace" font-weight="bold">${s.name}</text>`;
+      lx-=46;
+    });
   }
-  /* dots + hover titles + x labels */
-  data.forEach((d,i)=>{
-    const isHl = hl===i;
-    svg+=`<circle cx="${x(i)}" cy="${y(d.ops)}" r="${isHl?5.5:3.5}" fill="${isHl?"#f3a06b":"#e8641d"}" stroke="#101314" stroke-width="1.5">
-      <title>${d.label}: ${fmt3(d.ops)} OPS (last ${d.n}G)</title></circle>`;
-    if(onClick) svg+=`<circle cx="${x(i)}" cy="${y(d.ops)}" r="12" fill="transparent" data-i="${i}" style="cursor:pointer"><title>${d.label}: ${fmt3(d.ops)} OPS — tap for box score</title></circle>`;
-    const every=Math.ceil(data.length/7);
-    if(i%every===0 || i===data.length-1)
-      svg+=`<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="12.5" fill="#8d968f" font-family="Courier New,monospace">${d.label}</text>`;
+  series[0].points.forEach((p,i)=>{
+    const every=Math.ceil(n/7);
+    if(i%every===0 || i===n-1)
+      svg+=`<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="12.5" fill="#8d968f" font-family="Courier New,monospace">${p.label}</text>`;
   });
+  if(onClick){
+    const halfw = n>1 ? iw/(n-1)/2 : iw/2;
+    series[0].points.forEach((p,i)=>{
+      svg+=`<rect x="${x(i)-halfw}" y="0" width="${halfw*2}" height="${H}" fill="transparent" data-i="${i}" style="cursor:pointer"><title>${p.label} — tap for box score</title></rect>`;
+    });
+  }
   svg+=`</svg>`;
   const el=document.getElementById(elId);
   el.innerHTML=svg;
-  if(onClick && el.querySelectorAll) el.querySelectorAll("circle[data-i]").forEach(c=>
+  if(onClick && el.querySelectorAll) el.querySelectorAll("[data-i]").forEach(c=>
     c.addEventListener("click", ()=>onClick(+c.getAttribute("data-i"))));
 }
 
@@ -393,6 +427,13 @@ const teamLog = GAMES.map(g=>{
   Object.values(g.lines).forEach(l=>l.forEach((v,i)=>sum[i]+=v));
   return {game:g, line:sum};
 });
+const teamRS = GAMES.map(g=>Object.values(g.lines).reduce((a,l)=>a+l[1],0));
+function rollingAvg(arr){
+  return arr.map((_,i)=>{
+    const w=arr.slice(Math.max(0,i-3),i+1);
+    return {label:GAMES[i].date, v:w.reduce((a,b)=>a+b,0)/w.length, n:w.length};
+  });
+}
 function renderTeamLog(){
   const hdr=["AB","R","H","2B","3B","HR","RBI","BB","K","SB","HBP","SF","OPS"];
   const idx=[I.AB,I.R,I.H,I.D2,I.T3,I.HR,I.RBI,I.BB,I.SO,I.SB,I.HBP,I.SF];
@@ -417,8 +458,24 @@ function renderTeamLog(){
     }));
 }
 let selGame=null;
+let teamMetric="OPS";
 function renderTeamChart(){
-  drawChartInto("team-chart", rollingOPS(teamLog), team.OPS, "Rolling 4-game team OPS", showGameBox, selGame);
+  renderPills("t-pills", ["OPS","OBP","AVG","DIFF"], teamMetric, k=>{teamMetric=k; renderTeamChart();});
+  const lbl=document.getElementById("t-metric-label");
+  if(teamMetric==="DIFF"){
+    lbl.textContent="team RS/RA per game";
+    drawChartInto("team-chart",
+      [{name:"RS", color:"#7fb069", points:rollingAvg(teamRS)},
+       {name:"RA", color:"#c9564a", points:rollingAvg(OPP_RUNS)}],
+      {fmt:v=>v.toFixed(1), aria:"Rolling 4-game runs scored and allowed per game", onClick:showGameBox, hl:selGame});
+  } else {
+    const m=METRICS[teamMetric];
+    lbl.textContent=`team ${m.l}`;
+    drawChartInto("team-chart",
+      [{name:m.l, color:"#e8641d", points:rollingStat(teamLog, teamMetric)}],
+      {fmt:m.f, refs:[{v:team[teamMetric], label:`season ${m.f(team[teamMetric])}`}],
+       aria:`Rolling 4-game team ${m.l}`, onClick:showGameBox, hl:selGame});
+  }
 }
 function showGameBox(i){
   selGame = (i===null || i===selGame) ? null : i;
