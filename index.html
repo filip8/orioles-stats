@@ -610,6 +610,7 @@ function refreshFromFilter(){
 }
 if(document.addEventListener) document.addEventListener("click", e=>{
   if(!Object.keys(gfOpen).some(k=>gfOpen[k])) return;
+  if(document.body && !document.body.contains(e.target)) return;
   let n=e.target;
   while(n){ if(n.classList && n.classList.contains("gf")) return; n=n.parentNode; }
   gfOpen={}; renderGameFilters();
