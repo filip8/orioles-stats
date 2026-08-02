@@ -207,7 +207,7 @@ const GAMES = [
     "R Cruz":[5,0,1,1,0,1,0,0,0,0,0,0], "B Siow":[4,2,3,2,0,1,1,0,0,1,0,0],
     "J Shnider":[5,0,0,0,0,1,0,0,0,0,0,0], "S Ahn":[4,0,2,2,1,1,0,0,0,0,0,1],
     "A Brousssard":[5,0,1,0,0,1,0,0,0,0,0,0] }},
-  { date:"Jul 11", opp:"Mariners", res:"W", score:"13\u201310", lines:{
+  { date:"Jul 11", opp:"Mariners", res:"W", score:"13\u201310", forfeit:true, lines:{
     "C Hwang":[5,4,2,1,0,0,0,0,0,0,0,0], "F Pankovcin":[5,3,3,5,0,0,1,0,1,0,0,0],
     "C Hoffman":[5,1,3,2,0,0,1,0,0,0,0,0], "K Kaupp":[5,1,1,1,0,0,1,0,0,0,0,0],
     "S Ahn":[4,0,1,2,0,0,0,0,0,0,1,0], "J Shnider":[4,1,1,0,1,0,0,0,0,0,0,1],
@@ -289,8 +289,9 @@ document.getElementById("subline").textContent =
 document.getElementById("team-grid").innerHTML = [
   ["AVG",fmt3(team.AVG)],["OBP",fmt3(team.OBP)],["SLG",fmt3(team.SLG)],
   ["OPS",fmt3(team.OPS)],["RS",team.RS],["RA",team.RA],
+  ["RS/G",(team.RS/GAMES.length).toFixed(1)],["RA/G",(team.RA/GAMES.length).toFixed(1)],
 ].map(([k,v])=>`<div class="team-cell"><div class="k">${k}</div>
-  <div class="v" style="color:${k==="RA"?"var(--loss)":k==="RS"?"var(--win)":"var(--ink)"}">${v}</div></div>`).join("");
+  <div class="v" style="color:${k.startsWith("RA")?"var(--loss)":k.startsWith("RS")?"var(--win)":"var(--ink)"}">${v}</div></div>`).join("");
 document.getElementById("board-hint").textContent =
   `Tap a name for drilldown \u00b7 tap headers to sort \u00b7 \u2020 below ${Math.ceil(QUAL_PA)} PA (rate-stat sorts list qualified first)`;
 document.getElementById("footnote").textContent =
@@ -428,10 +429,10 @@ const teamLog = GAMES.map(g=>{
   return {game:g, line:sum};
 });
 const teamRS = GAMES.map(g=>Object.values(g.lines).reduce((a,l)=>a+l[1],0));
-function rollingAvg(arr){
+function rollingAvg(arr, labels){
   return arr.map((_,i)=>{
     const w=arr.slice(Math.max(0,i-3),i+1);
-    return {label:GAMES[i].date, v:w.reduce((a,b)=>a+b,0)/w.length, n:w.length};
+    return {label:labels[i], v:w.reduce((a,b)=>a+b,0)/w.length, n:w.length};
   });
 }
 function renderTeamLog(){
@@ -463,11 +464,14 @@ function renderTeamChart(){
   renderPills("t-pills", ["OPS","OBP","AVG","DIFF"], teamMetric, k=>{teamMetric=k; renderTeamChart();});
   const lbl=document.getElementById("t-metric-label");
   if(teamMetric==="DIFF"){
-    lbl.textContent="team RS/RA per game";
+    lbl.textContent="team RS/RA per game (excl. Jul 11 forfeit)";
+    const keep=GAMES.map((g,i)=>i).filter(i=>!GAMES[i].forfeit);
+    const labs=keep.map(i=>GAMES[i].date);
     drawChartInto("team-chart",
-      [{name:"RS", color:"#7fb069", points:rollingAvg(teamRS)},
-       {name:"RA", color:"#c9564a", points:rollingAvg(OPP_RUNS)}],
-      {fmt:v=>v.toFixed(1), aria:"Rolling 4-game runs scored and allowed per game", onClick:showGameBox, hl:selGame});
+      [{name:"RS", color:"#7fb069", points:rollingAvg(keep.map(i=>teamRS[i]), labs)},
+       {name:"RA", color:"#c9564a", points:rollingAvg(keep.map(i=>OPP_RUNS[i]), labs)}],
+      {fmt:v=>v.toFixed(1), aria:"Rolling 4-game runs scored and allowed per game, forfeit game excluded",
+       onClick:i=>showGameBox(keep[i]), hl:keep.indexOf(selGame)});
   } else {
     const m=METRICS[teamMetric];
     lbl.textContent=`team ${m.l}`;
