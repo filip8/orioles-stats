@@ -70,8 +70,7 @@
   .pill { background:transparent; border:1px solid var(--line); color:var(--dim); padding:4px 11px; font-family:var(--mono); font-size:11.5px; cursor:pointer; letter-spacing:.5px; }
   .pill.active { border-color:var(--orange); color:var(--orange); }
   .gf { position:relative; display:inline-block; }
-  .gf-panel { position:absolute; right:0; top:calc(100% + 4px); z-index:20; background:var(--panel2); border:1px solid var(--line); padding:8px 12px; min-width:240px; max-height:320px; overflow-y:auto; box-shadow:0 6px 18px rgba(0,0,0,.5); }
-  #gf-drill .gf-panel { left:0; right:auto; }
+  .gf-panel { position:absolute; left:0; top:calc(100% + 4px); z-index:20; background:var(--panel2); border:1px solid var(--line); padding:8px 12px; min-width:240px; max-width:calc(100vw - 24px); max-height:320px; overflow-y:auto; box-shadow:0 6px 18px rgba(0,0,0,.5); }
   .gf-row { display:block; padding:3px 0; font-size:12px; cursor:pointer; white-space:nowrap; font-family:var(--mono); color:var(--ink); }
   .gf-row input { accent-color:var(--orange); margin-right:7px; vertical-align:middle; }
   .gf-month { font-weight:700; color:var(--orange-soft); margin-top:7px; }
@@ -584,6 +583,14 @@ function renderGameFilter(cid){
   }
   el.innerHTML = html;
   if(!el.querySelectorAll) return;
+  const panel = el.querySelector && el.querySelector(".gf-panel");
+  if(panel && panel.getBoundingClientRect && typeof window!=="undefined"){
+    const r = panel.getBoundingClientRect();
+    const over = r.right - (window.innerWidth - 10);
+    if(over > 0) panel.style.left = (-over) + "px";
+    const r2 = panel.getBoundingClientRect();
+    if(r2.left < 10) panel.style.left = (parseFloat(panel.style.left||0) + (10 - r2.left)) + "px";
+  }
   el.querySelectorAll(".gf-btn").forEach(b=>b.addEventListener("click", ()=>{ gfOpen[cid]=!gfOpen[cid]; renderGameFilter(cid); }));
   el.querySelectorAll("input[data-k]").forEach(cb=>cb.addEventListener("change", ()=>{
     const k=cb.getAttribute("data-k");
