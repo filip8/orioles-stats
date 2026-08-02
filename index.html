@@ -371,9 +371,9 @@ function renderPlayerChartUI(){
      aria:`Rolling 4-game ${m.l} for ${p.name}`});
 }
 function drawChartInto(elId, series, opts){
-  const o=opts||{}, fmt=o.fmt||fmt3, refs=o.refs||[], onClick=o.onClick, hl=o.hl;
+  const o=opts||{}, fmt=o.fmt||fmt3, refs=o.refs||[], onClick=o.onClick, hl=o.hl, tipN=o.tipN||(n=>`last ${n}G`);
   const n=series[0].points.length;
-  const W=720, H=240, mL=56, mR=14, mT=14, mB=32;
+  const W=720, H=288, mL=56, mR=14, mT=14, mB=32;
   const iw=W-mL-mR, ih=H-mT-mB;
   let vals=[]; series.forEach(s=>s.points.forEach(p=>vals.push(p.v))); refs.forEach(r=>vals.push(r.v));
   let lo=Math.min(...vals), hi=Math.max(...vals);
@@ -396,7 +396,7 @@ function drawChartInto(elId, series, opts){
   series.forEach(s=>s.points.forEach((p,i)=>{
     const isHl=hl===i;
     svg+=`<circle cx="${x(i)}" cy="${y(p.v)}" r="${isHl?5.5:3.5}" fill="${isHl?"#f3a06b":s.color}" stroke="#101314" stroke-width="1.5">
-      <title>${p.label}${series.length>1?" "+s.name:""}: ${fmt(p.v)} (last ${p.n}G)</title></circle>`;
+      <title>${p.label}${series.length>1?" "+s.name:""}: ${fmt(p.v)} (${tipN(p.n)})</title></circle>`;
   }));
   if(series.length>1){
     let lx=W-mR;
@@ -429,11 +429,9 @@ const teamLog = GAMES.map(g=>{
   return {game:g, line:sum};
 });
 const teamRS = GAMES.map(g=>Object.values(g.lines).reduce((a,l)=>a+l[1],0));
-function rollingAvg(arr, labels){
-  return arr.map((_,i)=>{
-    const w=arr.slice(Math.max(0,i-3),i+1);
-    return {label:labels[i], v:w.reduce((a,b)=>a+b,0)/w.length, n:w.length};
-  });
+function cumSum(arr, labels){
+  let s=0;
+  return arr.map((v,i)=>{ s+=v; return {label:labels[i], v:s, n:i+1}; });
 }
 function renderTeamLog(){
   const hdr=["AB","R","H","2B","3B","HR","RBI","BB","K","SB","HBP","SF","OPS"];
@@ -464,13 +462,13 @@ function renderTeamChart(){
   renderPills("t-pills", ["OPS","OBP","AVG","DIFF"], teamMetric, k=>{teamMetric=k; renderTeamChart();});
   const lbl=document.getElementById("t-metric-label");
   if(teamMetric==="DIFF"){
-    lbl.textContent="team RS/RA per game";
+    lbl.textContent="cumulative team RS/RA";
     const labs=GAMES.map(g=>g.date);
     drawChartInto("team-chart",
-      [{name:"RS", color:"#7fb069", points:rollingAvg(teamRS, labs)},
-       {name:"RA", color:"#c9564a", points:rollingAvg(OPP_RUNS, labs)}],
-      {fmt:v=>v.toFixed(1), aria:"Rolling 4-game runs scored and allowed per game",
-       onClick:showGameBox, hl:selGame});
+      [{name:"RS", color:"#7fb069", points:cumSum(teamRS, labs)},
+       {name:"RA", color:"#c9564a", points:cumSum(OPP_RUNS, labs)}],
+      {fmt:v=>Math.round(v).toString(), aria:"Cumulative season runs scored and allowed",
+       tipN:n=>`thru ${n}G`, onClick:showGameBox, hl:selGame});
   } else {
     const m=METRICS[teamMetric];
     lbl.textContent=`team ${m.l}`;
