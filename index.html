@@ -69,6 +69,14 @@
   .pills { display:flex; gap:6px; flex-wrap:wrap; margin:0 0 8px; }
   .pill { background:transparent; border:1px solid var(--line); color:var(--dim); padding:4px 11px; font-family:var(--mono); font-size:11.5px; cursor:pointer; letter-spacing:.5px; }
   .pill.active { border-color:var(--orange); color:var(--orange); }
+  .gf { position:relative; display:inline-block; }
+  .gf-panel { position:absolute; right:0; top:calc(100% + 4px); z-index:20; background:var(--panel2); border:1px solid var(--line); padding:8px 12px; min-width:240px; max-height:320px; overflow-y:auto; box-shadow:0 6px 18px rgba(0,0,0,.5); }
+  #gf-drill .gf-panel { left:0; right:auto; }
+  .gf-row { display:block; padding:3px 0; font-size:12px; cursor:pointer; white-space:nowrap; font-family:var(--mono); color:var(--ink); }
+  .gf-row input { accent-color:var(--orange); margin-right:7px; vertical-align:middle; }
+  .gf-month { font-weight:700; color:var(--orange-soft); margin-top:7px; }
+  .gf-game { padding-left:22px; }
+  .gf-all { border-bottom:1px solid var(--line); padding-bottom:6px; }
   #teamlog tbody tr:hover td { background:#1d2225; }
   #teamlog tbody tr.sel td { background:#26221c; }
   .footnote { font-size:10px; color:#5a625c; margin-top:12px; line-height:1.5; }
@@ -94,7 +102,6 @@
         <div class="board-title" id="game-box-title"></div>
         <button class="close-btn" onclick="showGameBox(null)">Close ✕</button>
       </div>
-      <div class="pills" id="game-box-slicer" style="margin:8px 0 0"></div>
       <div class="tbl-scroll" style="margin-top:8px"><table id="game-box-tbl"></table></div>
     </div>
   </div>
@@ -110,13 +117,17 @@
     <div class="section-label">Rolling 4-game <span id="p-metric-label">OPS</span></div>
     <div class="pills" id="p-pills"></div>
     <div id="chart-box"></div>
-    <div class="section-label">Game log</div>
+    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap">
+      <div class="section-label">Game log</div>
+      <div class="gf" id="gf-drill"></div>
+    </div>
     <div class="tbl-scroll"><table id="gamelog"></table></div>
   </div>
 
   <div class="panel">
     <div class="board-head">
       <div class="board-title">Batting leaderboard</div>
+      <div class="gf" id="gf-board"></div>
       <div class="board-hint" id="board-hint"></div>
     </div>
     <div class="tbl-scroll"><table id="board"></table></div>
@@ -140,7 +151,7 @@
    Update RECORD / FORFEIT_WINS if the record changes.
    Everything else recomputes automatically.
    ================================================================ */
-const RECORD = "8\u20136";
+const RECORD = "9\u20136";
 const FORFEIT_WINS = 1;
 
 const GAMES = [
@@ -224,10 +235,17 @@ const GAMES = [
     "C Won":[3,1,1,1,0,2,1,0,0,0,0,0], "R Cruz":[2,1,0,0,1,2,0,0,0,0,0,0],
     "A Brousssard":[3,1,2,2,0,0,0,0,0,0,0,1], "K Kaupp":[3,1,0,0,0,0,0,0,0,0,0,0],
     "S Ahn":[2,2,1,2,1,0,0,0,0,0,0,0] }},
+  { date:"Aug 2", opp:"Risers", res:"W", score:"6\u20133", ha:"@", lines:{
+    "F Pankovcin":[4,0,1,1,1,0,0,0,0,0,0,0], "J Shnider":[5,1,0,0,0,1,0,0,0,0,0,0],
+    "C Hwang":[4,0,1,1,0,0,0,0,0,0,0,0], "C Hoffman":[4,0,0,0,0,0,0,0,0,0,0,0],
+    "Z Charles":[3,2,2,1,1,0,1,0,0,0,0,3], "K Kaupp":[4,1,2,3,0,1,1,0,0,0,0,0],
+    "S Ahn":[3,0,1,0,1,1,0,0,0,0,0,1], "B Burmester II":[3,0,1,0,0,1,0,0,0,1,0,1],
+    "A Brousssard":[4,1,1,0,0,0,0,0,0,0,0,1], "B Siow":[3,1,1,0,1,0,0,0,0,0,0,1],
+    "S Paek":[4,0,1,0,0,3,0,0,0,0,0,0] }},
 ];
 
 /* Opponent runs per game, same order as GAMES (for RA) */
-const OPP_RUNS = [6,5,16,14,9,8,11,10,1,11,9,10,1];
+const OPP_RUNS = [6,5,16,14,9,8,11,10,1,11,9,10,1,3];
 
 /* ================================================================ */
 const QUAL_PA = 2 * GAMES.length;
@@ -246,14 +264,17 @@ const fmt3 = v => { const s=v.toFixed(3); return s.startsWith("0.")?s.slice(1):s
 const fmtPct = v => (v*100).toFixed(1);
 
 /* Build players */
-const players = (() => {
+let selGames = new Set(GAMES.map((_,i)=>i));
+const qualPA = () => 2*selGames.size;
+function buildPlayers(){
   const map = {};
-  GAMES.forEach(g => Object.entries(g.lines).forEach(([n,l]) => {
+  GAMES.forEach((g,gi) => { if(!selGames.has(gi)) return; Object.entries(g.lines).forEach(([n,l]) => {
     if(!map[n]) map[n]={name:n,tot:emptyTot(),log:[]};
     addLine(map[n].tot,l); map[n].log.push({game:g,line:l});
-  }));
-  return Object.values(map).map(p => { const s=derive(p.tot); return {...p,stats:s,qualified:s.PA>=QUAL_PA}; });
-})();
+  });});
+  return Object.values(map).map(p => { const s=derive(p.tot); return {...p,stats:s,qualified:s.PA>=qualPA()}; });
+}
+let players = buildPlayers();
 
 const team = (() => {
   const t=emptyTot(); GAMES.forEach(g=>Object.values(g.lines).forEach(l=>addLine(t,l)));
@@ -299,8 +320,11 @@ document.getElementById("team-grid").innerHTML = [
   ["RS/G",(team.RS/GAMES.length).toFixed(1)],["RA/G",(team.RA/GAMES.length).toFixed(1)],
 ].map(([k,v])=>`<div class="team-cell"><div class="k">${k}</div>
   <div class="v" style="color:${k.startsWith("RA")?"var(--loss)":k.startsWith("RS")?"var(--win)":"var(--ink)"}">${v}</div></div>`).join("");
-document.getElementById("board-hint").textContent =
-  `Tap a name for drilldown \u00b7 tap headers to sort \u00b7 \u2020 below ${Math.ceil(QUAL_PA)} PA (rate-stat sorts list qualified first)`;
+function updateHint(){
+  document.getElementById("board-hint").textContent =
+    `Tap a name for drilldown \u00b7 tap headers to sort \u00b7 \u2020 below ${Math.ceil(qualPA())} PA in selected games (rate-stat sorts list qualified first)`;
+}
+updateHint();
 document.getElementById("footnote").textContent =
   `Compiled from ${GAMES.length} box scores. Qualified = 2 PA \u00d7 ${GAMES.length} tracked games (${QUAL_PA} PA). Record includes the 7/18 forfeit win vs Mariners (no box score). Batting only.`;
 
@@ -341,6 +365,7 @@ function selectPlayer(name){
   const box=document.getElementById("drill");
   if(!name){ box.style.display="none"; renderBoard(); return; }
   const p=players.find(x=>x.name===name);
+  if(!p){ selected=null; box.style.display="none"; renderBoard(); return; }
   box.style.display="block";
   document.getElementById("drill-name").innerHTML =
     p.name + (p.qualified?"":" <small>(not qualified)</small>");
@@ -519,15 +544,6 @@ function showGameBox(i){
   box.style.display="block";
   document.getElementById("game-box-title").innerHTML =
     `${g.date} ${g.ha||"vs"} ${g.opp} — <span class="${g.res==="W"?"res-w":"res-l"}">${g.res} ${g.score}</span>`;
-  const day=g.date.replace(/ \(\d+\)$/,"");
-  const sibs=[]; GAMES.forEach((x,j)=>{ if(x.date.replace(/ \(\d+\)$/,"")===day) sibs.push(j); });
-  const slicer=document.getElementById("game-box-slicer");
-  if(sibs.length>1){
-    slicer.innerHTML=sibs.map((j,k)=>
-      `<button class="pill${j===selGame?" active":""}" data-j="${j}">${GAMES[j].ha?GAMES[j].ha+" ":""}${GAMES[j].opp} (${k+1})</button>`).join("");
-    if(slicer.querySelectorAll) slicer.querySelectorAll(".pill").forEach(b=>
-      b.addEventListener("click", ()=>{ const j=+b.getAttribute("data-j"); if(j!==selGame) showGameBox(j); }));
-  } else slicer.innerHTML="";
   const hdr=["AB","R","H","2B","3B","HR","RBI","BB","K","SB","HBP","SF"];
   const idx=[I.AB,I.R,I.H,I.D2,I.T3,I.HR,I.RBI,I.BB,I.SO,I.SB,I.HBP,I.SF];
   const tot=new Array(12).fill(0);
@@ -542,9 +558,51 @@ function showGameBox(i){
     <tr style="border-top:2px solid var(--line)"><td class="l" style="color:var(--dim)">Totals</td>`+
     idx.map(j=>`<td style="font-weight:700">${tot[j]}</td>`).join("")+`</tr></tbody>`;
 }
+const MONTHS={Apr:"April",May:"May",Jun:"June",Jul:"July",Aug:"August",Sep:"September",Oct:"October"};
+const monthOf = d => d.split(" ")[0];
+let gfOpen = {};
+function renderGameFilters(){ ["gf-board","gf-drill"].forEach(renderGameFilter); }
+function renderGameFilter(cid){
+  const el=document.getElementById(cid); if(!el) return;
+  const total=GAMES.length, selN=selGames.size;
+  const label = selN===total ? `All games (${total})` : `${selN} of ${total} games`;
+  let html = `<button class="pill gf-btn">${label} \u25be</button>`;
+  if(gfOpen[cid]){
+    const groups=[], seen={};
+    GAMES.forEach((g,i)=>{ const m=monthOf(g.date); if(!(m in seen)){ seen[m]=groups.length; groups.push({m,items:[]}); } groups[seen[m]].items.push(i); });
+    html += `<div class="gf-panel">`;
+    html += `<label class="gf-row gf-all"><input type="checkbox" data-k="all" ${selN===total?"checked":""}>Select all</label>`;
+    groups.forEach(gr=>{
+      const mSel = gr.items.every(i=>selGames.has(i));
+      html += `<label class="gf-row gf-month"><input type="checkbox" data-k="m:${gr.m}" ${mSel?"checked":""}>${MONTHS[gr.m]||gr.m}</label>`;
+      gr.items.forEach(i=>{
+        const g=GAMES[i];
+        html += `<label class="gf-row gf-game"><input type="checkbox" data-k="g:${i}" ${selGames.has(i)?"checked":""}>${g.ha||"vs"} ${g.opp} (${g.score})</label>`;
+      });
+    });
+    html += `</div>`;
+  }
+  el.innerHTML = html;
+  if(!el.querySelectorAll) return;
+  el.querySelectorAll(".gf-btn").forEach(b=>b.addEventListener("click", ()=>{ gfOpen[cid]=!gfOpen[cid]; renderGameFilter(cid); }));
+  el.querySelectorAll("input[data-k]").forEach(cb=>cb.addEventListener("change", ()=>{
+    const k=cb.getAttribute("data-k");
+    if(k==="all"){ selGames = cb.checked ? new Set(GAMES.map((_,i)=>i)) : new Set(); }
+    else if(k.startsWith("m:")){ const m=k.slice(2); GAMES.forEach((g,i)=>{ if(monthOf(g.date)===m){ cb.checked?selGames.add(i):selGames.delete(i); } }); }
+    else { const i=+k.slice(2); cb.checked?selGames.add(i):selGames.delete(i); }
+    refreshFromFilter();
+  }));
+}
+function refreshFromFilter(){
+  players = buildPlayers();
+  updateHint();
+  renderGameFilters();
+  if(selected) selectPlayer(selected); else renderBoard();
+}
 renderTeamChart();
 renderTeamLog();
 renderBoard();
+renderGameFilters();
 </script>
 </body>
 </html>
