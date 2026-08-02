@@ -62,6 +62,8 @@
   .board-hint { font-size:10.5px; color:var(--dim); }
 
   .res-w { color:var(--win); } .res-l { color:var(--loss); }
+  #teamlog tbody tr:hover td { background:#1d2225; }
+  #teamlog tbody tr.sel td { background:#26221c; }
   .footnote { font-size:10px; color:#5a625c; margin-top:12px; line-height:1.5; }
   #chart-box, #team-chart { width:100%; }
   #chart-box svg, #team-chart svg { display:block; width:100%; height:auto; }
@@ -108,6 +110,14 @@
       <div class="board-hint" id="board-hint"></div>
     </div>
     <div class="tbl-scroll"><table id="board"></table></div>
+  </div>
+
+  <div class="panel">
+    <div class="board-head">
+      <div class="board-title">Team game log</div>
+      <div class="board-hint">Tap a game to open its box score</div>
+    </div>
+    <div class="tbl-scroll"><table id="teamlog"></table></div>
   </div>
 
   <div class="footnote" id="footnote"></div>
@@ -383,6 +393,29 @@ const teamLog = GAMES.map(g=>{
   Object.values(g.lines).forEach(l=>l.forEach((v,i)=>sum[i]+=v));
   return {game:g, line:sum};
 });
+function renderTeamLog(){
+  const hdr=["AB","R","H","2B","3B","HR","RBI","BB","K","SB","HBP","SF","OPS"];
+  const idx=[I.AB,I.R,I.H,I.D2,I.T3,I.HR,I.RBI,I.BB,I.SO,I.SB,I.HBP,I.SF];
+  const tbl=document.getElementById("teamlog");
+  tbl.innerHTML =
+    `<thead><tr><th class="l">Date</th><th class="l">Opp</th><th class="l">Res</th>`+
+    hdr.map(h=>`<th>${h}</th>`).join("")+`</tr></thead><tbody>`+
+    teamLog.map(({game,line},i)=>{
+      const t=emptyTot(); addLine(t,line); const gOPS=derive(t).OPS;
+      return `<tr data-g="${i}" style="cursor:pointer" class="${i===selGame?"sel":""}">
+        <td class="l" style="color:var(--dim)">${game.date}</td>
+        <td class="l" style="font-family:var(--disp);font-weight:700">${game.opp}</td>
+        <td class="l ${game.res==="W"?"res-w":"res-l"}">${game.res} ${game.score}</td>`+
+        idx.map(j=>`<td${line[j]===0?' class="z"':''}>${line[j]}</td>`).join("")+
+        `<td>${fmt3(gOPS)}</td></tr>`;
+    }).join("")+`</tbody>`;
+  if(tbl.querySelectorAll) tbl.querySelectorAll("tr[data-g]").forEach(tr=>
+    tr.addEventListener("click", ()=>{
+      showGameBox(+tr.getAttribute("data-g"));
+      const box=document.getElementById("game-box");
+      if(selGame!==null && box.scrollIntoView) box.scrollIntoView({behavior:"smooth", block:"nearest"});
+    }));
+}
 let selGame=null;
 function renderTeamChart(){
   drawChartInto("team-chart", rollingOPS(teamLog), team.OPS, "Rolling 4-game team OPS", showGameBox, selGame);
@@ -391,6 +424,7 @@ function showGameBox(i){
   selGame = (i===null || i===selGame) ? null : i;
   const box=document.getElementById("game-box");
   renderTeamChart();
+  renderTeamLog();
   if(selGame===null){ box.style.display="none"; return; }
   const g=GAMES[selGame];
   box.style.display="block";
@@ -411,6 +445,7 @@ function showGameBox(i){
     idx.map(j=>`<td style="font-weight:700">${tot[j]}</td>`).join("")+`</tr></tbody>`;
 }
 renderTeamChart();
+renderTeamLog();
 renderBoard();
 </script>
 </body>
