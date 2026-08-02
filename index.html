@@ -430,10 +430,9 @@ function drawChartInto(elId, series, opts){
       <title>${p.label}${series.length>1?" "+s.name:""}: ${fmt(p.v)} (${tipN(p.n)})</title></circle>`;
   }));
   if(series.length>1){
-    let lx=W-mR;
-    [...series].reverse().forEach(s=>{
-      svg+=`<text x="${lx}" y="${mT+2}" text-anchor="end" font-size="8.5" fill="${s.color}" font-family="Courier New,monospace" font-weight="bold">${s.name}</text>`;
-      lx-=46;
+    series.forEach(s=>{
+      const last=s.points[n-1];
+      svg+=`<text x="${x(n-1)}" y="${y(last.v)-8}" text-anchor="end" font-size="8.5" fill="${s.color}" font-family="Courier New,monospace" font-weight="bold">${s.name}</text>`;
     });
   }
   series[0].points.forEach((p,i)=>{
