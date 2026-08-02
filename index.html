@@ -412,6 +412,12 @@ function drawChartInto(elId, series, opts){
     svg+=`<line x1="${mL}" y1="${y(r.v)}" x2="${W-mR}" y2="${y(r.v)}" stroke="#8d968f" stroke-dasharray="4 4"/>`;
     svg+=`<text x="${W-mR}" y="${y(r.v)-4}" text-anchor="end" font-size="8.5" fill="#8d968f" font-family="Courier New,monospace">${r.label}</text>`;
   });
+  if(o.shade && series.length===2 && n>1){
+    const a=series[0].points.map((p,i)=>[x(i),y(p.v)]);
+    const b=series[1].points.map((p,i)=>[x(i),y(p.v)]).reverse();
+    const back=smoothPath(b).replace(/^M[^C]*/,"");
+    svg+=`<path d="${smoothPath(a)} L${b[0][0].toFixed(1)} ${b[0][1].toFixed(1)} ${back} Z" fill="#7fb069" fill-opacity="0.06" stroke="none"/>`;
+  }
   series.forEach(s=>{
     if(n>1){
       const pts=s.points.map((p,i)=>[x(i),y(p.v)]);
@@ -492,7 +498,7 @@ function renderTeamChart(){
     drawChartInto("team-chart",
       [{name:"RS", color:"#7fb069", points:cumSum(teamRS, labs)},
        {name:"RA", color:"#c9564a", points:cumSum(OPP_RUNS, labs)}],
-      {fmt:v=>Math.round(v).toString(), tickUnit:5, aria:"Cumulative season runs scored and allowed",
+      {fmt:v=>Math.round(v).toString(), tickUnit:5, shade:true, aria:"Cumulative season runs scored and allowed",
        tipN:n=>`thru ${n}G`, onClick:showGameBox, hl:selGame});
   } else {
     const m=METRICS[teamMetric];
