@@ -22,7 +22,8 @@
   .team-name span { color:var(--orange); }
   .record { font-family:var(--mono); font-size:20px; font-weight:700; }
   .sub { font-size:11px; color:var(--dim); letter-spacing:.5px; text-transform:uppercase; }
-  .team-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1px; margin-top:14px; background:var(--line); border:1px solid var(--line); width:clamp(300px,50%,100%); }
+  .team-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1px; margin-top:14px; background:var(--line); border:1px solid var(--line); width:100%; }
+  @media (min-width:700px){ .team-grid { width:50%; } }
   .team-cell { background:var(--panel2); padding:5px 6px; text-align:center; }
   .team-cell .k { font-size:10px; color:var(--dim); letter-spacing:1.2px; text-transform:uppercase; }
   .team-cell .v { font-family:var(--mono); font-size:16px; font-weight:700; margin-top:1px; }
