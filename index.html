@@ -207,7 +207,7 @@ const GAMES = [
     "R Cruz":[5,0,1,1,0,1,0,0,0,0,0,0], "B Siow":[4,2,3,2,0,1,1,0,0,1,0,0],
     "J Shnider":[5,0,0,0,0,1,0,0,0,0,0,0], "S Ahn":[4,0,2,2,1,1,0,0,0,0,0,1],
     "A Brousssard":[5,0,1,0,0,1,0,0,0,0,0,0] }},
-  { date:"Jul 11", opp:"Mariners", res:"W", score:"13\u201310", forfeit:true, lines:{
+  { date:"Jul 11", opp:"Mariners", res:"W", score:"13\u201310", lines:{
     "C Hwang":[5,4,2,1,0,0,0,0,0,0,0,0], "F Pankovcin":[5,3,3,5,0,0,1,0,1,0,0,0],
     "C Hoffman":[5,1,3,2,0,0,1,0,0,0,0,0], "K Kaupp":[5,1,1,1,0,0,1,0,0,0,0,0],
     "S Ahn":[4,0,1,2,0,0,0,0,0,0,1,0], "J Shnider":[4,1,1,0,1,0,0,0,0,0,0,1],
@@ -285,7 +285,7 @@ let sortKey="AVG", sortDir=-1, selected=null;
 /* ---------------- Header ---------------- */
 document.getElementById("record").textContent = RECORD;
 document.getElementById("subline").textContent =
-  `2026 \u00b7 incl. ${FORFEIT_WINS} forfeit win \u00b7 ${GAMES.length} games tracked`;
+  `2026 \u00b7 incl. forfeit W 7/18 vs Mariners \u00b7 ${GAMES.length} games tracked`;
 document.getElementById("team-grid").innerHTML = [
   ["AVG",fmt3(team.AVG)],["OBP",fmt3(team.OBP)],["SLG",fmt3(team.SLG)],
   ["OPS",fmt3(team.OPS)],["RS",team.RS],["RA",team.RA],
@@ -295,7 +295,7 @@ document.getElementById("team-grid").innerHTML = [
 document.getElementById("board-hint").textContent =
   `Tap a name for drilldown \u00b7 tap headers to sort \u00b7 \u2020 below ${Math.ceil(QUAL_PA)} PA (rate-stat sorts list qualified first)`;
 document.getElementById("footnote").textContent =
-  `Compiled from ${GAMES.length} box scores. Qualified = 2 PA \u00d7 ${GAMES.length} tracked games (${QUAL_PA} PA). Record includes the forfeit win (no box score). Batting only.`;
+  `Compiled from ${GAMES.length} box scores. Qualified = 2 PA \u00d7 ${GAMES.length} tracked games (${QUAL_PA} PA). Record includes the 7/18 forfeit win vs Mariners (no box score). Batting only.`;
 
 /* ---------------- Leaderboard ---------------- */
 function renderBoard(){
@@ -464,14 +464,13 @@ function renderTeamChart(){
   renderPills("t-pills", ["OPS","OBP","AVG","DIFF"], teamMetric, k=>{teamMetric=k; renderTeamChart();});
   const lbl=document.getElementById("t-metric-label");
   if(teamMetric==="DIFF"){
-    lbl.textContent="team RS/RA per game (excl. Jul 11 forfeit)";
-    const keep=GAMES.map((g,i)=>i).filter(i=>!GAMES[i].forfeit);
-    const labs=keep.map(i=>GAMES[i].date);
+    lbl.textContent="team RS/RA per game";
+    const labs=GAMES.map(g=>g.date);
     drawChartInto("team-chart",
-      [{name:"RS", color:"#7fb069", points:rollingAvg(keep.map(i=>teamRS[i]), labs)},
-       {name:"RA", color:"#c9564a", points:rollingAvg(keep.map(i=>OPP_RUNS[i]), labs)}],
-      {fmt:v=>v.toFixed(1), aria:"Rolling 4-game runs scored and allowed per game, forfeit game excluded",
-       onClick:i=>showGameBox(keep[i]), hl:keep.indexOf(selGame)});
+      [{name:"RS", color:"#7fb069", points:rollingAvg(teamRS, labs)},
+       {name:"RA", color:"#c9564a", points:rollingAvg(OPP_RUNS, labs)}],
+      {fmt:v=>v.toFixed(1), aria:"Rolling 4-game runs scored and allowed per game",
+       onClick:showGameBox, hl:selGame});
   } else {
     const m=METRICS[teamMetric];
     lbl.textContent=`team ${m.l}`;
