@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Yellowtail&display=swap" rel="stylesheet">
 <title>King County Orioles — 2026 Stats</title>
 <style>
   :root {
@@ -18,7 +21,7 @@
 
   .header { background:var(--panel); border:1px solid var(--line); border-top:3px solid var(--orange); padding:18px 18px 14px; margin-bottom:16px; }
   .title-row { display:flex; flex-wrap:wrap; align-items:baseline; gap:12px; }
-  .team-name { font-size:26px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase; }
+  .team-name { font-family:'Yellowtail','Brush Script MT',cursive; font-size:40px; font-weight:400; letter-spacing:1px; text-transform:none; line-height:1; }
   .team-name span { color:var(--orange); }
   .record { font-family:var(--mono); font-size:20px; font-weight:700; }
   .sub { font-size:11px; color:var(--dim); letter-spacing:.5px; text-transform:uppercase; }
@@ -78,16 +81,6 @@
 
   <div class="header">
     <div class="title-row">
-      <svg viewBox="0 0 74 64" width="44" height="38" style="align-self:center;flex:none" role="img" aria-label="Oriole bird mark">
-        <path d="M6 33 L20 38 L16 48 Z" fill="#0c0f10" stroke="#e8e4da" stroke-width="1" stroke-opacity=".45"/>
-        <ellipse cx="34" cy="40" rx="20" ry="13.5" fill="#e8641d"/>
-        <circle cx="50" cy="25" r="10" fill="#0c0f10" stroke="#e8e4da" stroke-width="1" stroke-opacity=".45"/>
-        <path d="M58 22 L70 25 L58 29 Z" fill="#5a625c"/>
-        <circle cx="52.5" cy="23" r="2.1" fill="#e8e4da"/>
-        <path d="M24 44 q8 6 20 2" stroke="#0c0f10" stroke-width="2.5" fill="none" stroke-opacity=".35"/>
-        <line x1="30" y1="53" x2="30" y2="60" stroke="#5a625c" stroke-width="2"/>
-        <line x1="38" y1="53" x2="38" y2="60" stroke="#5a625c" stroke-width="2"/>
-      </svg>
       <div class="team-name">King County <span>Orioles</span></div>
       <div class="record" id="record"></div>
       <div class="sub" id="subline"></div>
@@ -383,6 +376,18 @@ function renderPlayerChartUI(){
     {fmt:m.f, refs:[{v:p.stats[playerMetric], label:`season ${m.f(p.stats[playerMetric])}`}],
      aria:`Rolling 4-game ${m.l} for ${p.name}`});
 }
+function smoothPath(pts){
+  if(pts.length<3) return "M"+pts.map(p=>p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" L");
+  const sm=0.1;
+  let d=`M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+  for(let i=0;i<pts.length-1;i++){
+    const p0=pts[Math.max(0,i-1)], p1=pts[i], p2=pts[i+1], p3=pts[Math.min(pts.length-1,i+2)];
+    const c1x=p1[0]+(p2[0]-p0[0])*sm, c1y=p1[1]+(p2[1]-p0[1])*sm;
+    const c2x=p2[0]-(p3[0]-p1[0])*sm, c2y=p2[1]-(p3[1]-p1[1])*sm;
+    d+=` C${c1x.toFixed(1)} ${c1y.toFixed(1)} ${c2x.toFixed(1)} ${c2y.toFixed(1)} ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`;
+  }
+  return d;
+}
 function drawChartInto(elId, series, opts){
   const o=opts||{}, fmt=o.fmt||fmt3, refs=o.refs||[], onClick=o.onClick, hl=o.hl, tipN=o.tipN||(n=>`last ${n}G`);
   const n=series[0].points.length;
@@ -408,11 +413,14 @@ function drawChartInto(elId, series, opts){
     svg+=`<text x="${W-mR}" y="${y(r.v)-4}" text-anchor="end" font-size="8.5" fill="#8d968f" font-family="Courier New,monospace">${r.label}</text>`;
   });
   series.forEach(s=>{
-    if(n>1) svg+=`<polyline fill="none" stroke="${s.color}" stroke-width="1" points="${s.points.map((p,i)=>`${x(i)},${y(p.v)}`).join(" ")}"/>`;
+    if(n>1){
+      const pts=s.points.map((p,i)=>[x(i),y(p.v)]);
+      svg+=`<path fill="none" stroke="${s.color}" stroke-width="1" d="${smoothPath(pts)}"/>`;
+    }
   });
   series.forEach(s=>s.points.forEach((p,i)=>{
     const isHl=hl===i;
-    svg+=`<circle cx="${x(i)}" cy="${y(p.v)}" r="${isHl?3.5:1.5}" fill="${isHl?"#f3a06b":s.color}" stroke="#101314" stroke-width="1.5">
+    svg+=`<circle cx="${x(i)}" cy="${y(p.v)}" r="${isHl?4.5:2.5}" fill="${isHl?"#f3a06b":s.color}" stroke="#101314" stroke-width="1.5">
       <title>${p.label}${series.length>1?" "+s.name:""}: ${fmt(p.v)} (${tipN(p.n)})</title></circle>`;
   }));
   if(series.length>1){
