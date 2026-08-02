@@ -125,8 +125,10 @@
 
   <div class="panel">
     <div class="board-head">
-      <div class="board-title">Batting leaderboard</div>
-      <div class="gf" id="gf-board"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;flex-wrap:nowrap">
+        <div class="board-title">Batting leaderboard</div>
+        <div class="gf" id="gf-board"></div>
+      </div>
       <div class="board-hint" id="board-hint"></div>
     </div>
     <div class="tbl-scroll"><table id="board"></table></div>
@@ -606,6 +608,12 @@ function refreshFromFilter(){
   renderGameFilters();
   if(selected) selectPlayer(selected); else renderBoard();
 }
+if(document.addEventListener) document.addEventListener("click", e=>{
+  if(!Object.keys(gfOpen).some(k=>gfOpen[k])) return;
+  let n=e.target;
+  while(n){ if(n.classList && n.classList.contains("gf")) return; n=n.parentNode; }
+  gfOpen={}; renderGameFilters();
+});
 renderTeamChart();
 renderTeamLog();
 renderBoard();
