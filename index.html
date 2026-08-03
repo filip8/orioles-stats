@@ -372,7 +372,7 @@ function selectPlayer(name){
   document.getElementById("drill-name").innerHTML =
     p.name + (p.qualified?"":" <small>(not qualified)</small>");
   document.getElementById("drill-slash").textContent =
-    `${fmt3(p.stats.AVG)}/${fmt3(p.stats.OBP)}/${fmt3(p.stats.SLG)} \u00b7 ${fmt3(p.stats.OPS)} OPS \u00b7 ${p.stats.PA} PA \u00b7 ${p.stats.AB} AB \u00b7 ${p.stats.G} G`;
+    `${fmt3(p.stats.AVG)}/${fmt3(p.stats.OBP)}/${fmt3(p.stats.SLG)} \u00b7 ${fmt3(p.stats.OPS)} OPS \u00b7 ${p.stats.PA} PA \u00b7 ${p.stats.G} G`;
   renderPlayerChartUI();
   renderGameLog(p);
   renderBoard();
