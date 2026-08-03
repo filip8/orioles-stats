@@ -36,7 +36,7 @@
   .drill-head { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
   .pname { font-size:20px; font-weight:800; text-transform:uppercase; letter-spacing:1px; }
   .pname small { color:var(--dim); font-size:11px; font-weight:400; text-transform:none; }
-  .pslash { font-family:var(--mono); font-size:13px; color:var(--orange-soft); margin-top:3px; }
+  .pslash { font-family:var(--mono); font-size:13px; font-weight:700; color:var(--orange-soft); margin-top:3px; }
   .close-btn { background:transparent; border:1px solid var(--line); color:var(--dim); padding:6px 12px; cursor:pointer; font-size:12px; letter-spacing:1px; text-transform:uppercase; font-family:var(--disp); }
   .close-btn:hover { color:var(--ink); }
   .section-label { font-size:11px; color:var(--dim); letter-spacing:1px; text-transform:uppercase; margin:16px 0 6px; }
@@ -372,7 +372,7 @@ function selectPlayer(name){
   document.getElementById("drill-name").innerHTML =
     p.name + (p.qualified?"":" <small>(not qualified)</small>");
   document.getElementById("drill-slash").textContent =
-    `${fmt3(p.stats.AVG)}/${fmt3(p.stats.OBP)}/${fmt3(p.stats.SLG)} \u00b7 ${fmt3(p.stats.OPS)} OPS \u00b7 ${p.stats.PA} PA \u00b7 ${p.stats.G} G`;
+    `${fmt3(p.stats.AVG)}/${fmt3(p.stats.OBP)}/${fmt3(p.stats.SLG)} \u00b7 ${fmt3(p.stats.OPS)} OPS \u00b7 ${p.stats.PA} PA \u00b7 ${p.stats.AB} AB \u00b7 ${p.stats.G} G`;
   renderPlayerChartUI();
   renderGameLog(p);
   renderBoard();
@@ -419,8 +419,8 @@ function smoothPath(pts){
 function drawChartInto(elId, series, opts){
   const o=opts||{}, fmt=o.fmt||fmt3, refs=o.refs||[], onClick=o.onClick, hl=o.hl, tipN=o.tipN||(n=>`last ${n}G`);
   const n=series[0].points.length;
-  const F=(typeof window!=="undefined" && window.innerWidth<700)?1.7:1;
-  const W=720, H=245, mL=Math.round(56*(0.6+0.4*F)), mR=14, mT=14, mB=Math.round(32*(0.6+0.4*F));
+  const A=(typeof window!=="undefined" && window.innerWidth<700)?1:0;
+  const W=720, H=245, mL=56+2*A, mR=14, mT=14, mB=32+2*A;
   const iw=W-mL-mR, ih=H-mT-mB;
   let vals=[]; series.forEach(s=>s.points.forEach(p=>vals.push(p.v))); refs.forEach(r=>vals.push(r.v));
   let lo=Math.min(...vals), hi=Math.max(...vals);
@@ -435,11 +435,11 @@ function drawChartInto(elId, series, opts){
   let svg=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${o.aria||""}">`;
   ticks.forEach(t=>{
     svg+=`<line x1="${mL}" y1="${y(t)}" x2="${W-mR}" y2="${y(t)}" stroke="#2c3438" stroke-dasharray="2 4"/>`;
-    svg+=`<text x="${mL-6}" y="${y(t)+3.5}" text-anchor="end" font-size="${(8*F).toFixed(1)}" fill="#8d968f" font-family="Courier New,monospace">${fmt(t)}</text>`;
+    svg+=`<text x="${mL-6}" y="${y(t)+3.5}" text-anchor="end" font-size="${8+A}" fill="#8d968f" font-family="Courier New,monospace">${fmt(t)}</text>`;
   });
   refs.forEach(r=>{
     svg+=`<line x1="${mL}" y1="${y(r.v)}" x2="${W-mR}" y2="${y(r.v)}" stroke="#8d968f" stroke-dasharray="4 4"/>`;
-    svg+=`<text x="${W-mR}" y="${y(r.v)-4}" text-anchor="end" font-size="${(8.5*F).toFixed(1)}" fill="#8d968f" font-family="Courier New,monospace">${r.label}</text>`;
+    svg+=`<text x="${W-mR}" y="${y(r.v)-4}" text-anchor="end" font-size="${8.5+A}" fill="#8d968f" font-family="Courier New,monospace">${r.label}</text>`;
   });
   if(o.shade && series.length===2 && n>1){
     const a=series[0].points.map((p,i)=>[x(i),y(p.v)]);
@@ -461,13 +461,13 @@ function drawChartInto(elId, series, opts){
   if(series.length>1){
     series.forEach(s=>{
       const last=s.points[n-1];
-      svg+=`<text x="${x(n-1)}" y="${y(last.v)-8}" text-anchor="end" font-size="${(8.5*F).toFixed(1)}" fill="${s.color}" font-family="Courier New,monospace" font-weight="bold">${s.name}</text>`;
+      svg+=`<text x="${x(n-1)}" y="${y(last.v)-8}" text-anchor="end" font-size="${8.5+A}" fill="${s.color}" font-family="Courier New,monospace" font-weight="bold">${s.name}</text>`;
     });
   }
   series[0].points.forEach((p,i)=>{
     const every=Math.ceil(n/7);
     if(i%every===0 || i===n-1)
-      svg+=`<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="${(7.5*F).toFixed(1)}" fill="#8d968f" font-family="Courier New,monospace">${p.label}</text>`;
+      svg+=`<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="${7.5+A}" fill="#8d968f" font-family="Courier New,monospace">${p.label}</text>`;
   });
   if(onClick){
     const halfw = n>1 ? iw/(n-1)/2 : iw/2;
